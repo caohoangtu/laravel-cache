@@ -5,10 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Cache;
 
 class Todo extends Model
 {
     use HasFactory;
+
+    const CACHE_GET_ALL = 'todo_get_all';
+    const DETAIL_TODO = 'detail_todo';
 
     protected $table="todo";
 
@@ -21,6 +25,9 @@ class Todo extends Model
         $todo->title = $attributes["title"];
         $todo->content = $attributes["content"];
         $todo->save();
+
+        Cache::forget(self::CACHE_GET_ALL);
+
         return $todo;
     }
 
@@ -29,7 +36,16 @@ class Todo extends Model
      * @return mixed
      */
     public function getTodo(int $id){
+        $todo = Cache::get(self::DETAIL_TODO.$id);
+
+        if(!empty($todo)){
+            return $todo;
+        }
+
         $todo = $this->where("id",$id)->first();
+
+        Cache::add(self::DETAIL_TODO.$id,$todo);
+
         return $todo;
     }
 
@@ -37,7 +53,16 @@ class Todo extends Model
      * @return Todo[]|\Illuminate\Database\Eloquent\Collection
      */
     public function getsTodo(){
+
+        $todos = Cache::get(self::CACHE_GET_ALL);
+        if(!empty($todos)){
+            return $todos;
+        }
+        //get todos in database
         $todos = $this::all();
+
+        Cache::add(self::CACHE_GET_ALL,$todos);
+
         return $todos;
     }
 
@@ -54,6 +79,9 @@ class Todo extends Model
         $todo->title = $attributes["title"];
         $todo->content = $attributes["content"];
         $todo->save();
+
+        Cache::forget(self::DETAIL_TODO.$id);
+
         return $todo;
     }
 
@@ -66,6 +94,7 @@ class Todo extends Model
         if($todo == null){
             throw new ModelNotFoundException("Todo item not found");
         }
+        Cache::forget(self::DETAIL_TODO.$id);
         return $todo->delete();
     }
 }
